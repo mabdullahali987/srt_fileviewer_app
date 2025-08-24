@@ -1,4 +1,4 @@
-# srt_mate
+# Srt_File_viewerapp
 
 A new Flutter project.
 
