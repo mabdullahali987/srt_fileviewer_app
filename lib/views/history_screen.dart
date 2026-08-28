@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/history_service.dart';
 import 'dart:io';
-import 'package:intl/intl.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -11,108 +10,112 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  List<HistoryEntry> history = [];
+  List<HistoryEntry> _history = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    loadHistory();
+    _refreshHistory();
   }
 
-  Future<void> loadHistory() async {
+  Future<void> _refreshHistory() async {
     final entries = await HistoryService.getHistory();
-    setState(() => history = entries);
-  }
-
-  String formatDate(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      return DateFormat('MMM d, yyyy – hh:mm a').format(date);
-    } catch (e) {
-      return dateString;
-    }
+    setState(() {
+      _history = entries;
+      _isLoading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text(
-          "Subtitle History",
-          style: TextStyle(color: Colors.white),
-        ),
-        centerTitle: true,
-        elevation: 2,
-        backgroundColor: Colors.red,
+        title: const Text("Recent Files"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_sweep),
+            onPressed: () => _confirmClearHistory(),
+          )
+        ],
       ),
-      body: history.isEmpty
-          ? const Center(
-              child: Text(
-                "No history available.",
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: history.length,
-              itemBuilder: (context, index) {
-                final entry = history[index];
-                final fileExists = File(entry.filePath).existsSync();
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _history.isEmpty
+          ? _buildEmptyState()
+          : _buildHistoryList(),
+    );
+  }
 
-                return Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 4,
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    leading: CircleAvatar(
-                      radius: 26,
-                      backgroundColor: fileExists
-                          ? Colors.green.shade100
-                          : Colors.red.shade100,
-                      child: Icon(
-                        fileExists
-                            ? Icons.check_circle
-                            : Icons.warning_amber_rounded,
-                        color: fileExists ? Colors.green : Colors.red,
-                        size: 30,
-                      ),
-                    ),
-                    title: Text(
-                      entry.filename,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(
-                      "${formatDate(entry.date)} • ${fileExists ? 'Available' : 'Missing'}",
-                      style: TextStyle(
-                        color: fileExists
-                            ? Colors.black54
-                            : Colors.red.shade600,
-                        fontSize: 13,
-                      ),
-                    ),
-                    trailing: Icon(
-                      Icons.arrow_forward_ios,
-                      size: 16,
-                      color: Colors.grey.shade600,
-                    ),
-                    onTap: () {
-                      if (fileExists) {
-                        Navigator.pop(context, entry);
-                      }
-                    },
-                  ),
-                );
-              },
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.history_toggle_off, size: 64, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          const Text("No recent files found", style: TextStyle(color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryList() {
+    return ListView.builder(
+      itemCount: _history.length,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemBuilder: (context, index) {
+        final entry = _history[index];
+        final exists = File(entry.filePath).existsSync();
+
+        return Dismissible(
+          key: Key(entry.filePath),
+          direction: DismissDirection.endToStart,
+          background: Container(
+            color: Colors.red,
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            child: const Icon(Icons.delete, color: Colors.white),
+          ),
+          onDismissed: (_) => HistoryService.deleteEntry(entry.filePath),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: exists ? Colors.indigo.shade50 : Colors.red.shade50,
+              child: Icon(
+                exists ? Icons.description : Icons.error_outline,
+                color: exists ? Colors.indigo : Colors.red,
+              ),
             ),
+            title: Text(entry.filename, style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: exists ? Colors.black87 : Colors.grey,
+            )),
+            subtitle: Text("${entry.date} • ${exists ? 'Available' : 'File Missing'}"),
+            onTap: exists ? () => Navigator.pop(context, entry) : null,
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmClearHistory() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Clear History?"),
+        content: const Text("This will remove all recent file shortcuts."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          TextButton(
+              onPressed: () async {
+                await HistoryService.clearHistory();
+                Navigator.pop(context);
+                _refreshHistory();
+              },
+              child: const Text("Clear All", style: TextStyle(color: Colors.red))
+          ),
+        ],
+      ),
     );
   }
 }

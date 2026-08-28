@@ -1,20 +1,44 @@
 class ToneService {
-  static String detectTone(String text){
-    final lower = text.toUpperCase();
+  static const Map<String, List<String>> _emotionMap = {
+    'Positive': [
+      'love', 'happy', 'joy', 'great', 'awesome', 'amazing', 'good', 'thanks',
+      'excited', 'wonderful', 'perfect', 'yes', 'smile', 'glad'
+    ],
+    'Angry': [
+      'hate', 'angry', 'mad', 'kill', 'shut', 'stop', 'annoying', 'stupid',
+      'worst', 'hell', 'crazy', 'disgusting', 'furious'
+    ],
+    'Sad': [
+      'cry', 'sad', 'unhappy', 'sorry', 'miss', 'alone', 'depressed',
+      'pain', 'hurt', 'lost', 'tears', 'goodbye'
+    ],
+    'Fear': [
+      'fear', 'scared', 'afraid', 'panic', 'dark', 'run', 'hide', 'terror',
+      'danger', 'worry', 'anxious', 'ghost'
+    ],
+    'Questioning': [
+      'why', 'how', 'who', 'what', 'where', '?', 'really', 'perhaps'
+    ],
+  };
 
-    if (lower.contains('love') || lower.contains('happy')) {
-      return "Happy";
-    }
-    if (lower.contains('angry') || lower.contains('hate')) {
-      return "Angry";
-    }
-    if (lower.contains('cry') || lower.contains('sad')) {
-      return "Sad";
-    }
-    if (lower.contains('fear') || lower.contains('scared')) {
-      return "Fear";
+  static String detectTone(String text) {
+    if (text.isEmpty) return "Neutral";
+
+    final words = text.toLowerCase().split(RegExp(r'\W+'));
+    final scores = <String, int>{};
+
+    _emotionMap.keys.forEach((tone) => scores[tone] = 0);
+
+    for (var word in words) {
+      _emotionMap.forEach((tone, keywords) {
+        if (keywords.contains(word)) {
+          scores[tone] = (scores[tone] ?? 0) + 1;
+        }
+      });
     }
 
-    return "Neutral";
+    var detectedTone = scores.entries.reduce((a, b) => a.value >= b.value ? a : b);
+
+    return detectedTone.value > 0 ? detectedTone.key : "Neutral";
   }
 }
