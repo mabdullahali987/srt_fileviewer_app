@@ -12,10 +12,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SRT File Viewer',
-      theme: ThemeData(
-        primarySwatch: Colors.deepPurple,
-        useMaterial3: true,
-      ),
+      theme: ThemeData(primarySwatch: Colors.amber, useMaterial3: true),
       home: HomeScreen(),
       debugShowCheckedModeBanner: false,
     );
